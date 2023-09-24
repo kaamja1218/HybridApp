@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>과제</title>
+  <style>
+    /* 스타일링 */
+    #area1 {
+      border: 1px solid #000;
+      padding: 10px;
+    }
+    #area2, #area3 {
+      display: inline-block;
+      vertical-align: top;
+      border: 1px solid #000;
+      padding: 10px;
+    }
+    #buttons {
+      display: flex;
+      flex-direction: column;
+    }
+  </style>
+</head>
+<body>
+  <div id="area1">
+    <input type="text" id="nicknameInput" placeholder="아이디를 입력하세요">
+    <button id="loginButton" onclick="loginOrLogout()">로그인</button>
+  </div>
+  <div id="area2">
+    <div id="buttons">
+      <button onclick="showContent(1)">버튼1</button>
+      <button onclick="showContent(2)">버튼2</button>
+      <button onclick="moveContent(3)">버튼3</button>
+    </div>
+  </div>
+  <div id="area3"></div>
+
+  <script>
+    let isLoggedIn = false;
+    let currentContent = "";
+
+    function loginOrLogout() {
+    const nicknameInput = document.getElementById("nicknameInput");
+    const loginButton = document.getElementById("loginButton");
+
+    if (!isLoggedIn) {
+        const nickname = nicknameInput.value;
+        if (nickname.trim() === "") {
+            alert("아이디를 입력하세요.");
+        } else {
+            isLoggedIn = true;
+            loginButton.textContent = "로그아웃";
+            currentContent = `<img src="1.jpg" alt="${nickname}의 대표사진"><br>${nickname}의 대표사진`;
+        }
+    } else {
+        isLoggedIn = false;
+        loginButton.textContent = "로그인";
+        currentContent = "";
+    }
+
+    document.getElementById("area3").innerHTML = currentContent;
+}
+    function showContent(buttonNumber) {
+      
+
+      const contentArea = document.getElementById("area3");
+      switch (buttonNumber) {
+        case 1:
+          contentArea.textContent = "나는 김재혁이다";
+          break;
+        case 2:
+          contentArea.textContent = "I HATE ELFLEE";
+          break;
+      }
+    }
+
+    function moveContent(buttonNumber) {
+    
+      const contentArea = document.getElementById("area3");
+      switch (buttonNumber) {
+        case 3:
+          if (contentArea.textContent === "") {
+            alert("내용이 없습니다.");
+          } else {
+            const targetButton = document.querySelector("#buttons button:nth-child(3)");
+            targetButton.textContent = contentArea.textContent;
+            currentContent = "";
+            contentArea.textContent = "저장되었습니다.";
+          }
+          break;
+      }
+    }
+  </script>
+</body>
+</html>
