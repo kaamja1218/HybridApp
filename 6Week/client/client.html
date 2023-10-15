@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+    <body>
+    <button type="button" id="LoadButton" onclick="DataLoad()">눌러봐</button>
+    <p id="output">빈칸</p>
+    <script>
+        const Output = document.getElementById("output");
+
+        function DataLoad() {
+            fetch('http://127.0.0.1:1218/I_HATE_SERVER')
+            .then(response => response.text())
+            .then(data => { Output.textContent = data; })
+    }
+    </script>
+    </body>
+</html>
