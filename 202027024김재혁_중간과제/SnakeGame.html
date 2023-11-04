@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Snake.io</title>
+    <style>
+        canvas {
+            border: 2px solid black;
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <h3> 이은석 교수님을 피해서 학점을 챙겨라</h3>
+    <h3 id="slengthDisplay">가산점 : 3</h3>
+    <h3 id="timeDisplay">시간: 0.0</h3>
+    <audio src="bgm.mp3" controls autoplay></audio>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const slengthDisplay = document.getElementById('slengthDisplay');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const ctx = canvas.getContext('2d');
+        let speed = 5;
+        let mouseX = 0, mouseY = 0;
+        let player = [];
+        let shapes = [];
+        let isgameover = false;
+        let Loop;
+        let apple = { x: 40, y: 40, size: 10 };
+        let slength = 3;
+        let startTime = Date.now();
+        let obstacleAngle = 0; // 장애물의 회전 각도
+
+        class PlayerBodyObj {
+            constructor() {
+                try {
+                    this.PlayerPosX = player[player.length - 1].temp[0][0];
+                    this.PlayerPosY = player[player.length - 1].temp[0][1];
+                } catch (error) {
+                    this.PlayerPosX = canvas.width / 2;
+                    this.PlayerPosY = canvas.height / 2;
+                }
+
+                this.dirX = 0;
+                this.dirY = 0;
+                this.colors = ["#FFA500", "#FFFF00", "#008000", "#0000FF", "#000080", "#800080"];
+                this.colorIndex = player.length % this.colors.length;
+                this.color = this.colors[this.colorIndex];
+                this.temp = [];
+                for (let i = 0; i < 1; i++) {
+                    this.temp.push([this.PlayerPosX, this.PlayerPosY]);
+                }
+            }
+
+            UpdatePos(index) {
+                this.dirX = mouseX - this.PlayerPosX;
+                this.dirY = mouseY - this.PlayerPosY;
+
+                let scalar = Math.sqrt(Math.pow(this.dirX, 2) + Math.pow(this.dirY, 2));
+                this.dirX /= scalar;
+                this.dirY /= scalar;
+
+                if (scalar > 10) {
+                    if (index === 0) {
+                        this.PlayerPosX += this.dirX * speed;
+                        this.PlayerPosY += this.dirY * speed;
+                        this.temp.push([this.PlayerPosX, this.PlayerPosY]);
+                        if (this.temp.length > 1) {
+                            this.temp.shift();
+                        }
+                    } else {
+                        this.PlayerPosX = player[index - 1].temp[0][0];
+                        this.PlayerPosY = player[index - 1].temp[0][1];
+                        this.temp.push([this.PlayerPosX, this.PlayerPosY]);
+                        if (this.temp.length > 2) {
+                            this.temp.shift();
+                        }
+                    }
+                }
+            }
+        }
+
+        function drawSnake() {
+            for (let i = 0; i < player.length; i++) {
+                const body = player[i];
+                for (let j = 0; j < body.temp.length; j++) {
+                    ctx.beginPath();
+                    ctx.arc(body.temp[j][0], body.temp[j][1], 10, 0, Math.PI * 2);
+                    ctx.fillStyle = body.color;
+                    ctx.fill();
+                    ctx.closePath();
+                }
+            }
+        }
+
+        function drawShapes() {
+            for (let i = 0; i < shapes.length; i++) {
+                const shape = shapes[i];
+                ctx.save();
+                ctx.translate(shape.x + shape.size / 2, shape.y + shape.size / 2);
+                ctx.rotate(shape.angle);
+                shapeObj[shape.type](-shape.size / 2, -shape.size / 2, shape.size, shape.size);
+                ctx.restore();
+                shape.x += shape.speedX;
+                shape.y += shape.speedY;
+                shape.angle += 0.02; // 회전 속도 조절
+
+                if (shape.x < 0 || shape.x + shape.size > canvas.width) {
+                    shape.speedX = -shape.speedX;
+                }
+                if (shape.y < 0 || shape.y + shape.size > canvas.height) {
+                    shape.speedY = -shape.speedY;
+                }
+            }
+        }
+
+        function drawApple() {
+            ctx.beginPath();
+            ctx.arc(apple.x, apple.y, apple.size, 0, Math.PI * 2);
+            ctx.fillStyle = "red";
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawRectangle(x, y, width, height) {
+            ctx.fillRect(x, y, width, height);
+        }
+
+        function drawTriangle(x, y, size) {
+            ctx.fillStyle = "green";
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + size, y);
+            ctx.lineTo(x + size / 2, y - Math.sqrt(3) * size / 2);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawCircle(x, y, radius) {
+            ctx.fillStyle = "purple";
+            ctx.beginPath();
+            ctx.arc(x, y, radius / 2, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        let shapesList = ["rectangle", "triangle", "circle"];
+        let shapeObj = {
+            "rectangle": drawRectangle,
+            "triangle": drawTriangle,
+            "circle": drawCircle
+        };
+
+        let shapeSize = 30;
+        let shapeX = Math.random() * (canvas.width - shapeSize);
+        let shapeY = Math.random() * (canvas.height - shapeSize);
+        let shapeSpeedX = (Math.random() > 0.5 ? 1 : -1) * speed;
+        let shapeSpeedY = (Math.random() > 0.5 ? 1 : -1) * speed;
+
+        function checkCollisionWithApple() {
+            const head = player[0];
+            const headX = head.temp[0][0];
+            const headY = head.temp[0][1];
+
+            if (
+                headX + 10 > apple.x - apple.size &&
+                headX - 10 < apple.x + apple.size &&
+                headY + 10 > apple.y - apple.size &&
+                headY - 10 < apple.y + apple.size
+            ) {
+                player.push(new PlayerBodyObj());
+                apple.x = Math.random() * (canvas.width - apple.size * 2) + apple.size;
+                apple.y = Math.random() * (canvas.height - apple.size * 2) + apple.size;
+                slength++;
+                slengthDisplay.innerHTML = `가산점 : ${slength}`;
+            }
+        }
+
+        canvas.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX - canvas.getBoundingClientRect().left;
+            mouseY = e.clientY - canvas.getBoundingClientRect().top;
+        });
+
+        canvas.addEventListener('click', () => {
+            // 클릭할 때마다 속도를 5 증가
+            speed += 5;
+        });
+
+        player.push(new PlayerBodyObj());
+        player.push(new PlayerBodyObj());
+        player.push(new PlayerBodyObj());
+
+        // 게임 시작 시 기본으로 도형 하나 추가
+        const startShape = {
+            type: shapesList[Math.floor(Math.random() * shapesList.length)],
+            size: shapeSize,
+            x: Math.random() * (canvas.width - shapeSize),
+            y: Math.random() * (canvas.height - shapeSize),
+            speedX: (Math.random() > 0.5 ? 1 : -1) * speed,
+            speedY: (Math.random() > 0.5 ? 1 : -1) * speed,
+            angle: 0,
+        };
+        shapes.push(startShape);
+
+        Loop = setInterval(gameLoop, 1000 / 30);
+
+        let lastShapeAddedTime = Date.now();
+
+        function checkCollisionWithShapes() {
+            const head = player[0];
+            const headX = head.temp[0][0];
+            const headY = head.temp[0][1];
+
+            // 뱀 머리와 장애물의 충돌 검사
+            for (let i = 0; i < shapes.length; i++) {
+                const shape = shapes[i];
+                if (
+                    headX + 10 > shape.x &&
+                    headX - 10 < shape.x + shape.size &&
+                    headY + 10 > shape.y &&
+                    headY - 10 < shape.y + shape.size
+                ) {
+                    isgameover = true;
+                    break;
+                }
+            }
+
+            // 뱀 몸통 부분과 장애물의 충돌 검사
+            for (let i = 1; i < player.length; i++) {
+                const body = player[i];
+                for (let j = 0; j < body.temp.length; j++) {
+                    const bodyX = body.temp[j][0];
+                    const bodyY = body.temp[j][1];
+                    for (let k = 0; k < shapes.length; k++) {
+                        const shape = shapes[k];
+                        if (
+                            bodyX + 10 > shape.x &&
+                            bodyX - 10 < shape.x + shape.size &&
+                            bodyY + 10 > shape.y &&
+                            bodyY - 10 < shape.y + shape.size
+                        ) {
+                            isgameover = true;
+                            break;
+                        }
+                    }
+                }
+                if (isgameover) {
+                    break;
+                }
+            }
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            checkCollisionWithApple();
+            drawApple();
+            drawShapes();
+
+            for (let i = 0; i < player.length; i++) {
+                player[i].UpdatePos(i);
+            }
+            drawSnake();
+
+            // 뱀과 도형 충돌 검사
+            checkCollisionWithShapes();
+
+            const currentTime = Date.now();
+            const elapsedTime = (currentTime - startTime) / 1000;
+            timeDisplay.innerHTML = `시간: ${elapsedTime.toFixed(1)}`;
+
+            // 10초마다 도형 추가
+            if (currentTime - lastShapeAddedTime >= 10000) {
+                lastShapeAddedTime = currentTime;
+                const newShape = {
+                type: shapesList[Math.floor(Math.random() * shapesList.length)],
+                size: shapeSize,
+                x: Math.random() * (canvas.width - shapeSize),
+                y: Math.random() * (canvas.height - shapeSize),
+                speedX: (Math.random() > 0.5 ? 1 : -1) * (speed - 0.5),
+                speedY: (Math.random() > 0.5 ? 1 : -1) * (speed - 0.5),
+                angle: 0,
+            };
+            shapes.push(newShape);
+            }
+
+            if (isgameover) {
+                clearInterval(Loop);
+                alert('게임 종료!');
+                return;
+            }
+        }
+    </script>
+</body>
+</html>
